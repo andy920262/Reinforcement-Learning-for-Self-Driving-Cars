@@ -32,7 +32,7 @@ class Point:
     def __mul__(self, scalar):
         return Point((self.x*scalar, self.y*scalar))
 
-    def __div__(self, scalar):
+    def __truediv__(self, scalar):
         return Point((self.x/scalar, self.y/scalar))
 
     def __len__(self):
@@ -71,7 +71,7 @@ def draw_dashed_line(surf, color, start_pos, end_pos, width=1, dash_length=10):
     displacement = target - origin
     length = len(displacement)
     slope = displacement/length
-    loop = length / dash_length
+    loop = length // dash_length
 
     for index in range(0, loop, 2):
         start = origin + (slope * index * dash_length)
@@ -93,7 +93,7 @@ def draw_dashed_line_delay(surf, color, start_pos, end_pos, width=1, dash_length
     displacement = target - origin
     length = len(displacement)
     slope = displacement/length
-    loop = length / dash_length
+    loop = length // dash_length
 
     origin = origin + (slope * delay * 10)
 

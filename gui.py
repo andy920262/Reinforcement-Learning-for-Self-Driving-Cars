@@ -41,7 +41,7 @@ if config.VISUALENABLED:
     pygame.display.set_caption('DeepTraffic')
     fpsClock = pygame.time.Clock()
 
-    main_surface = pygame.display.set_mode((1600, 800), pygame.DOUBLEBUF | pygame.HWSURFACE)
+    main_surface = pygame.display.set_mode((1600, 800), pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.RESIZABLE)
     advanced_road = AdvancedRoad(main_surface, 0, 550, 1010, 800, lane=6)
 else:
     os.environ["SDL_VIDEODRIVER"] = "dummy"

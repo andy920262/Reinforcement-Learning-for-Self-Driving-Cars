@@ -1,15 +1,18 @@
-import tensorflow as tf
+#import tensorflow as tf
+#import tensorflow.compat.v1 as tf
+import torch
 import numpy as np
 from random import choice, uniform
 from collections import deque
 
-from cnn import Cnn
+#from cnn import Cnn
+from dqn import DQN
 from config import LEARNING_RATE, EPSILON_GREEDY_START_PROB, EPSILON_GREEDY_END_PROB, EPSILON_GREEDY_MAX_STATES, \
     MAX_MEM, BATCH_SIZE, VISION_W, VISION_B, VISION_F, TARGET_NETWORK_UPDATE_FREQUENCY, LEARN_START
 
-tf.logging.set_verbosity(tf.logging.INFO)
+#tf.logging.set_verbosity(tf.logging.INFO)
 
-FLAGS = tf.app.flags.FLAGS
+#FLAGS = tf.app.flags.FLAGS
 
 
 class DeepTrafficAgent:
@@ -19,8 +22,9 @@ class DeepTrafficAgent:
         self.num_actions = len(self.action_names)
         self.memory = deque()
 
-        self.model = Cnn(self.model_name, self.memory)
-        self.target_model = Cnn(self.model_name, [], target=True)
+        #self.model = Cnn(self.model_name, self.memory)
+        #self.target_model = Cnn(self.model_name, [], target=True)
+        self.model = DQN(model_name, self.memory)
 
         # self.state = np.zeros([1, VISION_F + VISION_B + 1, VISION_W * 2 + 1, 1])
         self.previous_states = np.zeros([1, VISION_F + VISION_B + 1, VISION_W * 2 + 1, 4])
@@ -49,6 +53,9 @@ class DeepTrafficAgent:
         return self.action_names.index(action)
 
     def act(self, state, is_training=True):
+        state = state.reshape(-1, *state.shape)
+        self.previous_states = np.concatenate([self.previous_states[:, :, :, 1:], state], -1)
+        '''
         state = state.reshape(VISION_F + VISION_B + 1, VISION_W * 2 + 1).tolist()
         previous_states = self.previous_states.tolist()
         for n in range(len(previous_states)):
@@ -58,9 +65,12 @@ class DeepTrafficAgent:
                     previous_states[n][y][x].append(state[y][x])
         self.previous_states = np.array(previous_states, dtype=int)
         self.previous_states = self.previous_states.reshape(1, VISION_F + VISION_B + 1, VISION_W * 2 + 1, 4)
+        '''
         self.previous_actions = np.roll(self.previous_actions, -1)
         self.previous_actions[3] = self.action
-        self.q_values = self.model.get_q_values(self.previous_states, self.previous_actions)
+        self.q_values = self.model.get_q_values(
+                torch.Tensor(self.previous_states),
+                torch.Tensor(self.previous_actions).unsqueeze(0)).detach().cpu().numpy()
         self.q_values = self.q_values[0][0]
 
         if is_training and self.epsilon_linear.get_value(iteration=self.model.get_count_states()) > uniform(0, 1):
@@ -72,8 +82,11 @@ class DeepTrafficAgent:
         return self.q_values, self.get_action_name(self.action)
 
     def remember(self, reward, next_state, end_episode=False, is_training=True):
+        next_state = next_state.reshape(-1, *next_state.shape)
+        next_state = np.concatenate([self.previous_states[:, :, :, 1:], next_state], -1)
+        '''
         next_state = next_state.reshape(VISION_F + VISION_B + 1, VISION_W * 2 + 1).tolist()
-
+        
         previous_states = self.previous_states.tolist()
         for n in range(len(previous_states)):
             for y in range(len(previous_states[n])):
@@ -81,6 +94,7 @@ class DeepTrafficAgent:
                     previous_states[n][y][x].pop(0)
                     previous_states[n][y][x].append(next_state[y][x])
         next_state = np.array(previous_states).reshape(-1, VISION_F + VISION_B + 1, VISION_W * 2 + 1, 4)
+        '''
 
         next_actions = self.previous_actions.copy()
         next_actions = np.roll(next_actions, -1)
@@ -90,13 +104,15 @@ class DeepTrafficAgent:
 
         if is_training and self.model.get_count_states() > LEARN_START and len(self.memory) > LEARN_START:
             self.model.optimize(self.memory,
-                                learning_rate=LEARNING_RATE,
+                                #learning_rate=LEARNING_RATE,
                                 batch_size=BATCH_SIZE,
-                                target_network=self.target_model)
+                                #target_network=self.target_model
+                                )
 
             if self.model.get_count_states() % TARGET_NETWORK_UPDATE_FREQUENCY == 0:
-                self.model.save_checkpoint(self.model.get_count_states())
-                self.target_model.load_checkpoint()
+                self.model.update_target()
+                #self.model.save_checkpoint(self.model.get_count_states())
+                #self.target_model.load_checkpoint()
                 self.model.log_target_network_update()
                 print("Target network updated")
             elif self.model.get_count_states() % 1000 == 0:
@@ -104,6 +120,7 @@ class DeepTrafficAgent:
 
         if len(self.memory) > MAX_MEM:
             self.memory.popleft()
+        '''
         self.memory.append((self.previous_states,
                             next_state,
                             self.action,
@@ -111,6 +128,14 @@ class DeepTrafficAgent:
                             end_episode,
                             self.previous_actions,
                             next_actions))
+        '''
+        self.memory.append((torch.Tensor(self.previous_states),
+                            torch.Tensor(next_state),
+                            torch.LongTensor([self.action]),
+                            torch.Tensor([reward - self.score]),
+                            torch.BoolTensor([end_episode]),
+                            torch.Tensor([self.previous_actions]),
+                            torch.Tensor([next_actions])))
         self.score = reward
 
         if end_episode:

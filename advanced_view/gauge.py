@@ -338,7 +338,7 @@ class GaugeDraw(ImageDraw.ImageDraw):
             vpos = self.gauge_origin[1] + self.radius * 0.42 - (vstep * len(self.text_labels)) / 2
 
             for l in self.text_labels:
-                text = unicode(l.encode("utf-8"), 'utf8')
+                text = str(l.encode("utf-8"), 'utf8')
                 textsize = self.text_font.getsize(text)
 
                 self.text((self.gauge_origin[0] - (textsize[0] / 2), vpos), text,

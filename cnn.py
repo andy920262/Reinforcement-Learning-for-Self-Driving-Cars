@@ -1,8 +1,10 @@
-import tensorflow as tf
+#import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import os
 import numpy as np
 import random
 from config import VISION_W, VISION_F, VISION_B, ROUND, DL_IS_TRAINING
+tf.disable_eager_execution()
 
 checkpoint_dir = 'models'
 
